@@ -1,7 +1,19 @@
 {
-  "name": "simulator-service",
+  "name": "asset-delta-simulator",
   "version": "1.0.0",
+  "description": "Simulate EVM transactions and predict asset changes before signing",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "ethereum",
+    "evm",
+    "simulation",
+    "transaction",
+    "wallet",
+    "preflight",
+    "anvil",
+    "foundry"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
