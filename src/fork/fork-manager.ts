@@ -11,10 +11,25 @@ export class ForkManager {
   private forks: Map<string, ManagedFork> = new Map();
   private refreshPromises: Map<string, Promise<ManagedFork>> = new Map();
   private refreshInterval: NodeJS.Timeout | null = null;
+  private portPool: Set<number> = new Set();
   private nextPort: number;
 
   constructor() {
     this.nextPort = config.fork.basePort;
+  }
+
+  private allocatePort(): number {
+    // Reuse a freed port if available
+    const freedPort = this.portPool.values().next().value;
+    if (freedPort !== undefined) {
+      this.portPool.delete(freedPort);
+      return freedPort;
+    }
+    return this.nextPort++;
+  }
+
+  private releasePort(port: number): void {
+    this.portPool.add(port);
   }
 
   /**
@@ -145,9 +160,11 @@ export class ForkManager {
       // Spawn new fork first (on new port)
       const newFork = await this.spawnFork(network);
 
-      // Kill old fork after new one is ready
+      // Kill old fork after new one is ready and release its port
       if (existing) {
+        const oldPort = existing.port;
         this.killProcess(existing.process);
+        this.releasePort(oldPort);
       }
 
       const duration = Date.now() - startTime;
@@ -166,7 +183,7 @@ export class ForkManager {
   }
 
   private async spawnFork(network: NetworkConfig): Promise<ManagedFork> {
-    const port = this.nextPort++;
+    const port = this.allocatePort();
     logger.info({ networkId: network.id, port }, 'Spawning Anvil fork');
 
     const anvilProcess = spawn('anvil', [
