@@ -1,9 +1,9 @@
 # Asset Delta Simulator Service Dockerfile
-FROM node:20-alpine AS base
+# Use Debian-based image for glibc compatibility with Anvil
+FROM node:20-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -20,21 +20,20 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production image with Foundry for Anvil
+# Get Anvil binary from Foundry image
 FROM ghcr.io/foundry-rs/foundry:latest AS foundry
 
 FROM base AS runner
 WORKDIR /app
 
-# Install curl for healthcheck and bash for scripts
-RUN apk add --no-cache curl bash
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Copy Anvil binary from Foundry image
 COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/anvil
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 simulator
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs simulator
 
 # Copy built application with ownership
 COPY --from=builder --chown=simulator:nodejs /app/dist ./dist
