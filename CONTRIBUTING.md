@@ -6,8 +6,8 @@ Thanks for your interest in contributing to Asset Delta Simulator!
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_ORG/asset-delta-simulator.git
-cd asset-delta-simulator
+git clone https://github.com/Layer-Z-Labs/evm-simulator.git
+cd evm-simulator
 
 # Install dependencies
 npm install
