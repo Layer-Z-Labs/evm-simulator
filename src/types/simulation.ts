@@ -1,4 +1,4 @@
-import type { AssetChanges, DeltasByAddress } from './asset-delta.js';
+import type { AssetChanges, DeltasByAddress, ApprovalChanges, ApprovalsByAddress } from './asset-delta.js';
 
 export interface TransactionParams {
   from: string;
@@ -23,6 +23,8 @@ export interface SimulateResponse {
   involvedAddresses: string[];
   assetChanges: AssetChanges;
   deltasByAddress: DeltasByAddress;
+  approvals: ApprovalChanges;
+  approvalsByAddress: ApprovalsByAddress;
 }
 
 export function createEmptyAssetChanges(): AssetChanges {
@@ -34,6 +36,14 @@ export function createEmptyAssetChanges(): AssetChanges {
   };
 }
 
+export function createEmptyApprovals(): ApprovalChanges {
+  return {
+    erc20: [],
+    erc721: [],
+    operatorApprovals: [],
+  };
+}
+
 export function createErrorResponse(reason: string): SimulateResponse {
   return {
     success: false,
@@ -42,5 +52,7 @@ export function createErrorResponse(reason: string): SimulateResponse {
     involvedAddresses: [],
     assetChanges: createEmptyAssetChanges(),
     deltasByAddress: {},
+    approvals: createEmptyApprovals(),
+    approvalsByAddress: {},
   };
 }

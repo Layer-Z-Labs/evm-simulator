@@ -55,6 +55,41 @@ export const AssetChangesSchema = Type.Object({
   erc1155: Type.Array(ERC1155TransferSchema),
 });
 
+// Approval schemas
+export const ERC20ApprovalSchema = Type.Object({
+  token: Type.String(),
+  owner: Type.String(),
+  spender: Type.String(),
+  amount: Type.String(),
+  isUnlimited: Type.Boolean(),
+});
+
+export const ERC721ApprovalSchema = Type.Object({
+  token: Type.String(),
+  owner: Type.String(),
+  spender: Type.String(),
+  tokenId: Type.String(),
+});
+
+export const OperatorApprovalSchema = Type.Object({
+  token: Type.String(),
+  owner: Type.String(),
+  operator: Type.String(),
+  approved: Type.Boolean(),
+});
+
+export const ApprovalChangesSchema = Type.Object({
+  erc20: Type.Array(ERC20ApprovalSchema),
+  erc721: Type.Array(ERC721ApprovalSchema),
+  operatorApprovals: Type.Array(OperatorApprovalSchema),
+});
+
+export const AggregatedApprovalSchema = Type.Object({
+  spender: Type.String(),
+  amount: Type.String(),
+  isUnlimited: Type.Boolean(),
+});
+
 export const SimulateResponseSchema = Type.Object({
   success: Type.Boolean(),
   revertReason: Type.Union([Type.String(), Type.Null()]),
@@ -62,4 +97,6 @@ export const SimulateResponseSchema = Type.Object({
   involvedAddresses: Type.Array(Type.String()),
   assetChanges: AssetChangesSchema,
   deltasByAddress: Type.Record(Type.String(), Type.Record(Type.String(), Type.String())),
+  approvals: ApprovalChangesSchema,
+  approvalsByAddress: Type.Record(Type.String(), Type.Record(Type.String(), AggregatedApprovalSchema)),
 });

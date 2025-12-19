@@ -1,8 +1,20 @@
 import type { TraceLog } from './tracer.js';
-import type { ERC20Transfer, ERC721Transfer, ERC1155Transfer } from '../types/asset-delta.js';
+import type {
+  ERC20Transfer,
+  ERC721Transfer,
+  ERC1155Transfer,
+  ERC20Approval,
+  ERC721Approval,
+  OperatorApproval,
+  ApprovalChanges,
+} from '../types/asset-delta.js';
 import { createComponentLogger } from '../infrastructure/logging/logger.js';
 
 const logger = createComponentLogger('log-parser');
+
+// Max uint256 for unlimited approval detection
+const MAX_UINT256 = 2n ** 256n - 1n;
+const MAX_UINT256_STR = MAX_UINT256.toString();
 
 // Event topic signatures
 export const EVENT_TOPICS = {
@@ -12,6 +24,10 @@ export const EVENT_TOPICS = {
   TRANSFER_SINGLE: '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62',
   // ERC-1155: TransferBatch(address,address,address,uint256[],uint256[])
   TRANSFER_BATCH: '0x4a39dc06d4c0dbc64b70af90fd698a233a518aa5d07e595d983b8c0526c8f7fb',
+  // ERC-20 and ERC-721 share this topic: Approval(address,address,uint256)
+  APPROVAL: '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
+  // ERC-721 and ERC-1155: ApprovalForAll(address,address,bool)
+  APPROVAL_FOR_ALL: '0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31',
 } as const;
 
 function decodeAddress(topic: string): string {
@@ -173,5 +189,93 @@ function parseTransferBatchEvent(log: TraceLog, result: ParsedTransfers): void {
     }
   } catch (err) {
     logger.warn({ log, error: err }, 'Failed to parse ERC-1155 TransferBatch');
+  }
+}
+
+// ============ Approval Parsing ============
+
+export interface ParsedApprovals {
+  erc20: ERC20Approval[];
+  erc721: ERC721Approval[];
+  operatorApprovals: OperatorApproval[];
+}
+
+export function parseApprovalLogs(logs: TraceLog[]): ParsedApprovals {
+  const result: ParsedApprovals = {
+    erc20: [],
+    erc721: [],
+    operatorApprovals: [],
+  };
+
+  for (const log of logs) {
+    if (!log.topics || log.topics.length === 0) continue;
+
+    const topic0 = log.topics[0].toLowerCase();
+
+    if (topic0 === EVENT_TOPICS.APPROVAL) {
+      parseApprovalEvent(log, result);
+    } else if (topic0 === EVENT_TOPICS.APPROVAL_FOR_ALL) {
+      parseApprovalForAllEvent(log, result);
+    }
+  }
+
+  return result;
+}
+
+function parseApprovalEvent(log: TraceLog, result: ParsedApprovals): void {
+  // ERC-20 Approval: 3 topics (topic0, owner, spender) + amount in data
+  // ERC-721 Approval: 4 topics (topic0, owner, spender, tokenId)
+
+  if (log.topics.length === 4) {
+    // ERC-721 Approval
+    try {
+      result.erc721.push({
+        token: log.address.toLowerCase(),
+        owner: decodeAddress(log.topics[1]),
+        spender: decodeAddress(log.topics[2]),
+        tokenId: decodeUint256(log.topics[3]).toString(),
+      });
+    } catch (err) {
+      logger.warn({ log, error: err }, 'Failed to parse ERC-721 Approval');
+    }
+  } else if (log.topics.length === 3) {
+    // ERC-20 Approval
+    try {
+      const amount = decodeUint256(log.data);
+      const amountStr = amount.toString();
+      const isUnlimited = amount === MAX_UINT256 || amountStr === MAX_UINT256_STR;
+
+      result.erc20.push({
+        token: log.address.toLowerCase(),
+        owner: decodeAddress(log.topics[1]),
+        spender: decodeAddress(log.topics[2]),
+        amount: amountStr,
+        isUnlimited,
+      });
+    } catch (err) {
+      logger.warn({ log, error: err }, 'Failed to parse ERC-20 Approval');
+    }
+  }
+}
+
+function parseApprovalForAllEvent(log: TraceLog, result: ParsedApprovals): void {
+  // ApprovalForAll(address indexed owner, address indexed operator, bool approved)
+  // 3 topics: topic0, owner, operator
+  // data: bool approved (32 bytes, 0 or 1)
+
+  if (log.topics.length !== 3) return;
+
+  try {
+    const approvedValue = decodeUint256(log.data);
+    const approved = approvedValue !== 0n;
+
+    result.operatorApprovals.push({
+      token: log.address.toLowerCase(),
+      owner: decodeAddress(log.topics[1]),
+      operator: decodeAddress(log.topics[2]),
+      approved,
+    });
+  } catch (err) {
+    logger.warn({ log, error: err }, 'Failed to parse ApprovalForAll');
   }
 }

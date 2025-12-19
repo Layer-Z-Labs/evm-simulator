@@ -1,10 +1,11 @@
 import type { PublicClient } from 'viem';
 import { createComponentLogger } from '../infrastructure/logging/logger.js';
 import { traceCall, extractNativeTransfers } from './tracer.js';
-import { parseTransferLogs } from './log-parser.js';
+import { parseTransferLogs, parseApprovalLogs } from './log-parser.js';
 import { aggregateDeltas } from './delta-aggregator.js';
+import { aggregateApprovals } from './approval-aggregator.js';
 import type { TransactionParams, SimulateResponse } from '../types/simulation.js';
-import { createEmptyAssetChanges, createErrorResponse } from '../types/simulation.js';
+import { createEmptyAssetChanges, createEmptyApprovals, createErrorResponse } from '../types/simulation.js';
 import type { AssetChanges } from '../types/asset-delta.js';
 
 const logger = createComponentLogger('simulator');
@@ -37,6 +38,9 @@ export class Simulator {
       // Parse event logs for token transfers
       const tokenTransfers = parseTransferLogs(traceResult.logs);
 
+      // Parse event logs for approvals
+      const parsedApprovals = parseApprovalLogs(traceResult.logs);
+
       // Build asset changes
       const assetChanges: AssetChanges = {
         native: nativeTransfers.map(t => ({
@@ -52,6 +56,9 @@ export class Simulator {
       // Aggregate deltas
       const { involvedAddresses, deltasByAddress } = aggregateDeltas(assetChanges);
 
+      // Aggregate approvals
+      const { approvals, approvalsByAddress } = aggregateApprovals(parsedApprovals);
+
       logger.info({
         networkId,
         gasUsed: traceResult.gasUsed?.toString(),
@@ -59,6 +66,7 @@ export class Simulator {
         erc20Count: assetChanges.erc20.length,
         erc721Count: assetChanges.erc721.length,
         erc1155Count: assetChanges.erc1155.length,
+        approvalCount: approvals.erc20.length + approvals.erc721.length + approvals.operatorApprovals.length,
         involvedCount: involvedAddresses.length,
       }, 'Simulation completed');
 
@@ -69,6 +77,8 @@ export class Simulator {
         involvedAddresses,
         assetChanges,
         deltasByAddress,
+        approvals,
+        approvalsByAddress,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';

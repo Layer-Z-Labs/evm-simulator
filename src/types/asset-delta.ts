@@ -27,6 +27,45 @@ export interface ERC1155Transfer {
   amount: string;
 }
 
+// Approval types
+export interface ERC20Approval {
+  token: string;
+  owner: string;
+  spender: string;
+  amount: string;
+  isUnlimited: boolean;
+}
+
+export interface ERC721Approval {
+  token: string;
+  owner: string;
+  spender: string;
+  tokenId: string;
+}
+
+export interface OperatorApproval {
+  token: string;
+  owner: string;
+  operator: string;
+  approved: boolean;
+}
+
+export interface ApprovalChanges {
+  erc20: ERC20Approval[];
+  erc721: ERC721Approval[];
+  operatorApprovals: OperatorApproval[];
+}
+
+// Aggregated approval per owner: { "0xToken": { spender, amount, isUnlimited } }
+export interface AggregatedApproval {
+  spender: string;
+  amount: string;
+  isUnlimited: boolean;
+}
+
+export type TokenApprovals = Record<string, AggregatedApproval>;
+export type ApprovalsByAddress = Record<string, TokenApprovals>;
+
 export interface AssetChanges {
   native: NativeTransfer[];
   erc20: ERC20Transfer[];

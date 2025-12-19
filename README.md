@@ -69,7 +69,7 @@ Simulate a transaction and return asset deltas.
 }
 ```
 
-**Response (success):**
+**Response (success - transfer):**
 ```json
 {
   "success": true,
@@ -100,6 +100,42 @@ Simulate a transaction and return asset deltas.
     "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": {
       "0xTokenContractAddress": "+1000000000000000000"
     }
+  },
+  "approvals": { "erc20": [], "erc721": [], "operatorApprovals": [] },
+  "approvalsByAddress": {}
+}
+```
+
+**Response (success - approval):**
+```json
+{
+  "success": true,
+  "revertReason": null,
+  "gasUsed": "46146",
+  "involvedAddresses": ["0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", "0xTokenContractAddress"],
+  "assetChanges": { "native": [], "erc20": [], "erc721": [], "erc1155": [] },
+  "deltasByAddress": {},
+  "approvals": {
+    "erc20": [
+      {
+        "token": "0xTokenContractAddress",
+        "owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "spender": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+        "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+        "isUnlimited": true
+      }
+    ],
+    "erc721": [],
+    "operatorApprovals": []
+  },
+  "approvalsByAddress": {
+    "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266": {
+      "0xTokenContractAddress": {
+        "spender": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+        "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+        "isUnlimited": true
+      }
+    }
   }
 }
 ```
@@ -112,7 +148,9 @@ Simulate a transaction and return asset deltas.
   "gasUsed": null,
   "involvedAddresses": [],
   "assetChanges": { "native": [], "erc20": [], "erc721": [], "erc1155": [] },
-  "deltasByAddress": {}
+  "deltasByAddress": {},
+  "approvals": { "erc20": [], "erc721": [], "operatorApprovals": [] },
+  "approvalsByAddress": {}
 }
 ```
 
@@ -364,6 +402,40 @@ Raw transfer events, useful for:
 - Building transaction summaries
 - Showing transfer flow diagrams
 - Auditing individual movements
+
+### `approvals`
+
+Raw approval events detected in the transaction:
+
+```typescript
+{
+  erc20: [{ token, owner, spender, amount, isUnlimited }],
+  erc721: [{ token, owner, spender, tokenId }],
+  operatorApprovals: [{ token, owner, operator, approved }]
+}
+```
+
+- `isUnlimited`: true when amount equals max uint256 (type(uint256).max)
+- Zero-amount approvals represent revocations
+- `operatorApprovals`: ERC-721/1155 `setApprovalForAll` events
+
+### `approvalsByAddress`
+
+Aggregated approvals per owner address:
+
+```typescript
+{
+  "0xOwner": {
+    "0xToken": {
+      spender: "0xSpender",
+      amount: "1000000000000000000",
+      isUnlimited: false
+    }
+  }
+}
+```
+
+Useful for showing users what spending permissions they're granting before signing.
 
 ## Error Handling
 
