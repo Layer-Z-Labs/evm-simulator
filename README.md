@@ -247,6 +247,7 @@ curl -X POST http://localhost:9000/simulate \
 | `HOST` | `0.0.0.0` | HTTP server host |
 | `FORK_BASE_PORT` | `9545` | Starting port for Anvil forks |
 | `FORK_STARTUP_TIMEOUT_MS` | `30000` | Max wait time for fork to be ready |
+| `FORK_REFRESH_INTERVAL_MS` | `60000` | Interval for periodic fork refresh (0 = disabled) |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
 | `NODE_ENV` | `development` | Environment (development, production) |
 | `LOCALHOST_RPC_URL` | `http://127.0.0.1:8545` | RPC URL for localhost network |
@@ -274,10 +275,22 @@ export const NETWORKS: NetworkConfig[] = [
 
 When a simulation is requested for a network:
 - If no fork exists, Anvil spawns with `--fork-url` pointing to the upstream RPC
-- The fork runs on an incrementing port (9545, 9546, ...)
+- The fork runs on a dynamically allocated port (starting at 9545)
 - Forks are reused for subsequent requests (stateless simulation)
 
-### 2. Transaction Tracing
+### 2. Fork Synchronization
+
+Anvil forks snapshot blockchain state at spawn time. To stay synchronized with the upstream chain:
+
+- **Periodic Refresh**: Every `FORK_REFRESH_INTERVAL_MS` (default: 60s), active forks are refreshed
+- **Hot Swap**: New fork spawns before old one is killed (~300ms refresh with zero downtime)
+- **Request Queuing**: Requests arriving during refresh wait for the new fork to be ready
+- **Port Recycling**: Freed ports are reused to prevent unbounded port allocation
+- **Graceful Fallback**: If refresh fails, the existing fork continues serving requests
+
+This ensures simulations reflect recent on-chain state (new contracts, balance changes) without manual intervention.
+
+### 3. Transaction Tracing
 
 The service calls `debug_traceCall` with the `callTracer`:
 
@@ -292,7 +305,7 @@ This returns:
 - The full call tree (for native ETH transfers)
 - All emitted event logs (for token transfers)
 
-### 3. Event Parsing
+### 4. Event Parsing
 
 Transfer events are identified by topic signatures:
 
@@ -306,7 +319,7 @@ Transfer events are identified by topic signatures:
 - 3 topics + data = ERC-20 (amount in data)
 - 4 topics = ERC-721 (tokenId in topic[3])
 
-### 4. Delta Aggregation
+### 5. Delta Aggregation
 
 All transfers are aggregated into net changes per address:
 
