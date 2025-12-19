@@ -1,0 +1,44 @@
+services:
+  # Asset Delta Simulator Service
+  simulator-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asset-delta-simulator
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      # Server Configuration
+      NODE_ENV: production
+      PORT: 9000
+      HOST: 0.0.0.0
+
+      # Fork Configuration
+      FORK_BASE_PORT: 9545
+      FORK_STARTUP_TIMEOUT_MS: 30000
+
+      # Logging
+      LOG_LEVEL: info
+
+      # Network RPC URLs (for forking)
+      # For local development, use host.docker.internal to reach host machine
+      LOCALHOST_RPC_URL: ${LOCALHOST_RPC_URL:-http://host.docker.internal:8545}
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
+    volumes:
+      - ./logs:/app/logs:rw
+    networks:
+      - simulator-network
+    # Allow container to connect to host network for local Hardhat
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  simulator-network:
+    driver: bridge
