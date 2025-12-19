@@ -1,7 +1,7 @@
 import type { PublicClient } from 'viem';
 import type { ChildProcess } from 'child_process';
 
-export type ForkStatus = 'idle' | 'starting' | 'running' | 'error';
+export type ForkStatus = 'idle' | 'starting' | 'running' | 'refreshing' | 'error';
 
 export interface ManagedFork {
   networkId: string;

@@ -21,9 +21,13 @@ async function start() {
       port: config.port,
     });
 
+    // Start periodic fork refresh after server is listening
+    server.forkManager.startPeriodicRefresh();
+
     appLogger.info({
       host: config.host,
       port: config.port,
+      forkRefreshIntervalMs: config.fork.refreshIntervalMs,
     }, 'Asset Delta Simulator started');
 
     appLogger.info({
